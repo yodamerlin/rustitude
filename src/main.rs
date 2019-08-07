@@ -117,16 +117,11 @@ impl EventHandler for AmplitudeGameState<'_> {
 
         // remove elements that are behind the screen
         loop {
-            match self.wave_section.get(0) {
-                Some(section) => {
-                    if section.x < -32.0 {
-                        self.wave_section.pop_front();
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-                None => {
+            if let Some(section) = self.wave_section.get(0) {
+                if section.x < -32.0 {
+                    self.wave_section.pop_front();
+                    continue;
+                } else {
                     break;
                 }
             }
