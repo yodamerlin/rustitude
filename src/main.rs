@@ -36,10 +36,10 @@ struct Wave {
 
 fn main() {
     let (mut ctx, mut event_loop) = ContextBuilder::new("Amplitude", "yodamerlin")
+        .window_setup(conf::WindowSetup::default().title("Amplitude"))
         .build()
-        .expect("Could not create ggez context, death will now occur.");
+        .expect("Could not create ggez context");
 
-    graphics::set_window_title(&ctx, "Amplitude");
     let screen_size = graphics::screen_coordinates(&ctx);
 
     let mut state = AmplitudeGameState {
