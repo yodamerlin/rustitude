@@ -142,12 +142,6 @@ impl EventHandler for AmplitudeGameState<'_> {
             bar_width = 0.0;
         }
 
-        mb.rectangle(
-            DrawMode::fill(),
-            graphics::Rect::new(5.0, 5.0, bar_width, 16.0),
-            self.wave_section[self.wave_section.len() - 1].color, // I feel bad about this
-        );
-
         for section in self.wave_section.iter() {
             mb.circle(
                 DrawMode::fill(),
@@ -157,6 +151,12 @@ impl EventHandler for AmplitudeGameState<'_> {
                 section.color,
             );
         }
+
+        mb.rectangle(
+            DrawMode::fill(),
+            graphics::Rect::new(5.0, 5.0, bar_width, 16.0),
+            self.wave_section[self.wave_section.len() - 1].color, // I feel bad about this
+        );
 
         for s in mb.build(ctx) {
             graphics::draw(ctx, &s, DrawParam::new())?;
