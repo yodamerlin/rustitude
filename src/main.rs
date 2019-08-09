@@ -6,6 +6,8 @@ use ggez::*;
 
 use std::collections::VecDeque;
 
+use rand::prelude::*;
+
 const GAME_SPEED: f32 = 150.0;
 const WAVE_FRONT_FREQUENCY: f32 = 1.0;
 const WAVE_FRONT_AMPLITUDE: f32 = 70.0;
@@ -16,11 +18,28 @@ const LIFE_RECOVER: f32 = 10.0;
 const LIFE_DEPLETE: f32 = 20.0;
 const LIFE_MAXIMUM: f32 = 100.0;
 
+const OBSTACLE_COUNTDOWN: f32 = 2.0;
+const OBSTACLE_ANGLE_FREQUENCY: f32 = 1.0;
+
 struct AmplitudeGameState<'a> {
     wave_front: Wave,
     wave_section: &'a mut VecDeque<WaveSection>,
     time: f32,
     life: f32,
+    obstacle: &'a mut Obstacles<'a>,
+    generator: &'a mut rand::rngs::ThreadRng,
+}
+
+struct Obstacles<'a> {
+    sprite: graphics::Image,
+    objects: &'a mut VecDeque<Obstacle>,
+    countdown: f32,
+}
+
+struct Obstacle {
+    x: f32,
+    y: f32,
+    angle: f32,
 }
 
 struct WaveSection {
@@ -42,6 +61,8 @@ fn main() {
 
     let screen_size = graphics::screen_coordinates(&ctx);
 
+    let sawblade_image = graphics::Image::new(&mut ctx, "/sawblade.png").unwrap();
+
     let mut state = AmplitudeGameState {
         wave_front: Wave {
             x: screen_size.w / 8.0,
@@ -50,6 +71,12 @@ fn main() {
         wave_section: &mut VecDeque::new(),
         time: 0.0,
         life: 100.0,
+        obstacle: &mut Obstacles {
+            objects: &mut VecDeque::new(),
+            sprite: sawblade_image,
+            countdown: OBSTACLE_COUNTDOWN,
+        },
+        generator: &mut thread_rng(),
     };
 
     match event::run(&mut ctx, &mut event_loop, &mut state) {
@@ -110,10 +137,31 @@ impl EventHandler for AmplitudeGameState<'_> {
             color: section_color,
         };
         for section in self.wave_section.iter_mut() {
-            section.x = section.x - dt * GAME_SPEED
+            section.x = section.x - dt * GAME_SPEED;
         }
 
         self.wave_section.push_back(new_wave_section);
+
+        // obstacle update
+
+        for o in self.obstacle.objects.iter_mut() {
+            o.x = o.x - dt * GAME_SPEED;
+            o.angle = o.angle - 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * dt;
+        }
+
+        // add obstacle
+
+        self.obstacle.countdown -= dt;
+        if self.obstacle.countdown <= 0.0 {
+            self.obstacle.countdown += OBSTACLE_COUNTDOWN;
+            let screen_size = graphics::screen_coordinates(&ctx);
+            let new_obstacle = Obstacle {
+                x: screen_size.w + 32.0,
+                y: self.generator.gen_range(0.0, screen_size.h),
+                angle: self.generator.gen_range(0.0, 2.0 * std::f32::consts::PI),
+            };
+            self.obstacle.objects.push_back(new_obstacle);
+        }
 
         // remove elements that are behind the screen
         loop {
@@ -125,6 +173,19 @@ impl EventHandler for AmplitudeGameState<'_> {
                     break;
                 }
             }
+            break;
+        }
+
+        loop {
+            if let Some(obstacle) = self.obstacle.objects.get(0) {
+                if obstacle.x < -32.0 {
+                    self.obstacle.objects.pop_front();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            break;
         }
 
         Ok(())
@@ -157,6 +218,17 @@ impl EventHandler for AmplitudeGameState<'_> {
             graphics::Rect::new(5.0, 5.0, bar_width, 16.0),
             self.wave_section[self.wave_section.len() - 1].color, // I feel bad about this
         );
+
+        for o in self.obstacle.objects.iter() {
+            graphics::draw(
+                ctx,
+                &self.obstacle.sprite,
+                DrawParam::new()
+                    .rotation(o.angle)
+                    .dest(Point2::new(o.x, o.y))
+                    .offset(Point2::new(0.5, 0.5)),
+            )?;
+        }
 
         for s in mb.build(ctx) {
             graphics::draw(ctx, &s, DrawParam::new())?;
