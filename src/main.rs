@@ -105,13 +105,13 @@ impl EventHandler for AmplitudeGameState<'_> {
         if input::keyboard::is_key_pressed(&ctx, KeyCode::Space) {
             if self.life > 0.0 {
                 amplitude = WAVE_FRONT_AMPLITUDE_SMALL;
-                self.life = self.life - LIFE_DEPLETE * dt;
+                self.life -= LIFE_DEPLETE * dt;
             } else {
                 amplitude = WAVE_FRONT_AMPLITUDE;
             }
         } else {
             amplitude = WAVE_FRONT_AMPLITUDE;
-            self.life = self.life + LIFE_RECOVER * dt;
+            self.life += LIFE_RECOVER * dt;
         }
 
         if self.life > LIFE_MAXIMUM {
@@ -125,9 +125,9 @@ impl EventHandler for AmplitudeGameState<'_> {
             section_color = Color::new(0.0, 0.0, 1.0, 1.0)
         }
 
-        self.wave_front.y = self.wave_front.y + sine_function_difference * amplitude;
+        self.wave_front.y += sine_function_difference * amplitude;
 
-        self.time = self.time + dt;
+        self.time += dt;
 
         // update wave back
 
@@ -137,7 +137,7 @@ impl EventHandler for AmplitudeGameState<'_> {
             color: section_color,
         };
         for section in self.wave_section.iter_mut() {
-            section.x = section.x - dt * GAME_SPEED;
+            section.x -= dt * GAME_SPEED;
         }
 
         self.wave_section.push_back(new_wave_section);
@@ -145,8 +145,8 @@ impl EventHandler for AmplitudeGameState<'_> {
         // obstacle update
 
         for o in self.obstacle.objects.iter_mut() {
-            o.x = o.x - dt * GAME_SPEED;
-            o.angle = o.angle - 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * dt;
+            o.x -= dt * GAME_SPEED;
+            o.angle -= 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * dt;
         }
 
         // add obstacle
@@ -230,7 +230,7 @@ impl EventHandler for AmplitudeGameState<'_> {
             )?;
         }
 
-        for s in mb.build(ctx) {
+        if let Ok(s) = mb.build(ctx) {
             graphics::draw(ctx, &s, DrawParam::new())?;
         }
 
