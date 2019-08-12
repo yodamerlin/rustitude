@@ -169,8 +169,6 @@ impl EventHandler for AmplitudeGameState<'_> {
                 if section.x < -32.0 {
                     self.wave_section.pop_front();
                     continue;
-                } else {
-                    break;
                 }
             }
             break;
@@ -181,8 +179,6 @@ impl EventHandler for AmplitudeGameState<'_> {
                 if obstacle.x < -32.0 {
                     self.obstacle.objects.pop_front();
                     continue;
-                } else {
-                    break;
                 }
             }
             break;
