@@ -164,14 +164,14 @@ impl EventHandler for AmplitudeGameState {
 
         // obstacle update
 
-        let sprite_size = self.obstacle.sprite.width() as f32 / 2.0;
+        let area_of_influence = self.obstacle.sprite.width() as f32 / 2.0 + WAVE_RADIUS / 2.0;
 
         for o in self.obstacle.objects.iter_mut() {
             o.x -= dt * GAME_SPEED;
             o.angle -= 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * dt;
 
-            if (o.x - self.wave_front.x).powi(2) < sprite_size.powi(2)
-                && (o.y - self.wave_front.y).powi(2) < sprite_size.powi(2)
+            if (o.x - self.wave_front.x).powi(2) < area_of_influence.powi(2)
+                && (o.y - self.wave_front.y).powi(2) < area_of_influence.powi(2)
             {
                 end_game = true;
             }
@@ -212,6 +212,7 @@ impl EventHandler for AmplitudeGameState {
             break;
         }
 
+        // restart the game on loss, a bit crude but it'll do for now
         if end_game {
             self.restart(ctx);
         }
