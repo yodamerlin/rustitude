@@ -21,6 +21,8 @@ const LIFE_MAXIMUM: f32 = 100.0;
 const OBSTACLE_COUNTDOWN: f32 = 2.0;
 const OBSTACLE_ANGLE_FREQUENCY: f32 = 1.0;
 
+const MAXIMUM_DELTA: f32 = 1.0 / 100.0;
+
 struct AmplitudeGameState {
     wave_front: Wave,
     wave_section: VecDeque<WaveSection>,
@@ -110,85 +112,97 @@ impl EventHandler for AmplitudeGameState {
 
         let mut end_game = false;
 
-        // update wave front
-        let previous_sine_function =
-            (self.time * 2.0 * std::f32::consts::PI * WAVE_FRONT_FREQUENCY).sin();
-        let next_sine_function =
-            ((self.time + dt) * 2.0 * std::f32::consts::PI * WAVE_FRONT_FREQUENCY).sin();
+        let mut elapsed_time = 0.0;
 
-        let sine_function_difference = previous_sine_function - next_sine_function;
+        while elapsed_time < dt {
+            let delta_time = if dt - elapsed_time < MAXIMUM_DELTA {
+                dt - elapsed_time
+            } else {
+                MAXIMUM_DELTA
+            };
+            elapsed_time += delta_time;
 
-        // apply checks here to reduce amplitude
+            // update wave front
+            let previous_sine_function =
+                (self.time * 2.0 * std::f32::consts::PI * WAVE_FRONT_FREQUENCY).sin();
+            let next_sine_function =
+                ((self.time + delta_time) * 2.0 * std::f32::consts::PI * WAVE_FRONT_FREQUENCY)
+                    .sin();
 
-        let amplitude: f32;
+            let sine_function_difference = previous_sine_function - next_sine_function;
 
-        if input::keyboard::is_key_pressed(&ctx, KeyCode::Space) {
-            if self.life > 0.0 {
-                amplitude = WAVE_FRONT_AMPLITUDE_SMALL;
-                self.life -= LIFE_DEPLETE * dt;
+            // apply checks here to reduce amplitude
+
+            let amplitude: f32;
+
+            if input::keyboard::is_key_pressed(&ctx, KeyCode::Space) {
+                if self.life > 0.0 {
+                    amplitude = WAVE_FRONT_AMPLITUDE_SMALL;
+                    self.life -= LIFE_DEPLETE * delta_time;
+                } else {
+                    amplitude = WAVE_FRONT_AMPLITUDE;
+                }
             } else {
                 amplitude = WAVE_FRONT_AMPLITUDE;
+                self.life += LIFE_RECOVER * delta_time;
             }
-        } else {
-            amplitude = WAVE_FRONT_AMPLITUDE;
-            self.life += LIFE_RECOVER * dt;
-        }
 
-        if self.life > LIFE_MAXIMUM {
-            self.life = LIFE_MAXIMUM;
-        }
-
-        let section_color: Color;
-        if amplitude == WAVE_FRONT_AMPLITUDE {
-            section_color = Color::new(1.0, 0.0, 0.0, 1.0)
-        } else {
-            section_color = Color::new(0.0, 0.0, 1.0, 1.0)
-        }
-
-        self.wave_front.y += sine_function_difference * amplitude;
-
-        self.time += dt;
-
-        // update wave back
-
-        let new_wave_section = WaveSection {
-            x: self.wave_front.x,
-            y: self.wave_front.y,
-            color: section_color,
-        };
-        for section in self.wave_section.iter_mut() {
-            section.x -= dt * MOVEMENT_SPEED;
-        }
-
-        self.wave_section.push_back(new_wave_section);
-
-        // obstacle update
-
-        let area_of_influence = self.obstacle.sprite.width() as f32 / 2.0 + WAVE_RADIUS / 2.0;
-
-        for o in self.obstacle.objects.iter_mut() {
-            o.x -= dt * MOVEMENT_SPEED;
-            o.angle -= 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * dt;
-
-            if (o.x - self.wave_front.x).powi(2) < area_of_influence.powi(2)
-                && (o.y - self.wave_front.y).powi(2) < area_of_influence.powi(2)
-            {
-                end_game = true;
+            if self.life > LIFE_MAXIMUM {
+                self.life = LIFE_MAXIMUM;
             }
-        }
 
-        // add obstacle
+            let section_color: Color;
+            if amplitude == WAVE_FRONT_AMPLITUDE {
+                section_color = Color::new(1.0, 0.0, 0.0, 1.0)
+            } else {
+                section_color = Color::new(0.0, 0.0, 1.0, 1.0)
+            }
 
-        self.obstacle.countdown -= dt;
-        if self.obstacle.countdown <= 0.0 {
-            self.obstacle.countdown += OBSTACLE_COUNTDOWN;
-            let screen_size = graphics::screen_coordinates(&ctx);
-            let new_obstacle = Obstacle {
-                x: screen_size.w + 32.0,
-                y: self.generator.gen_range(0.0, screen_size.h),
-                angle: self.generator.gen_range(0.0, 2.0 * std::f32::consts::PI),
+            self.wave_front.y += sine_function_difference * amplitude;
+
+            self.time += delta_time;
+
+            // update wave back
+
+            let new_wave_section = WaveSection {
+                x: self.wave_front.x,
+                y: self.wave_front.y,
+                color: section_color,
             };
-            self.obstacle.objects.push_back(new_obstacle);
+            for section in self.wave_section.iter_mut() {
+                section.x -= delta_time * MOVEMENT_SPEED;
+            }
+
+            self.wave_section.push_back(new_wave_section);
+
+            // obstacle update
+
+            let area_of_influence = self.obstacle.sprite.width() as f32 / 2.0 + WAVE_RADIUS / 2.0;
+
+            for o in self.obstacle.objects.iter_mut() {
+                o.x -= delta_time * MOVEMENT_SPEED;
+                o.angle -= 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * delta_time;
+
+                if (o.x - self.wave_front.x).powi(2) < area_of_influence.powi(2)
+                    && (o.y - self.wave_front.y).powi(2) < area_of_influence.powi(2)
+                {
+                    end_game = true;
+                }
+            }
+
+            // add obstacle
+
+            self.obstacle.countdown -= delta_time;
+            if self.obstacle.countdown <= 0.0 {
+                self.obstacle.countdown += OBSTACLE_COUNTDOWN;
+                let screen_size = graphics::screen_coordinates(&ctx);
+                let new_obstacle = Obstacle {
+                    x: screen_size.w + 32.0,
+                    y: self.generator.gen_range(0.0, screen_size.h),
+                    angle: self.generator.gen_range(0.0, 2.0 * std::f32::consts::PI),
+                };
+                self.obstacle.objects.push_back(new_obstacle);
+            }
         }
 
         // remove elements that are behind the screen
