@@ -21,18 +21,18 @@ const LIFE_MAXIMUM: f32 = 100.0;
 const OBSTACLE_COUNTDOWN: f32 = 2.0;
 const OBSTACLE_ANGLE_FREQUENCY: f32 = 1.0;
 
-struct AmplitudeGameState<'a> {
+struct AmplitudeGameState {
     wave_front: Wave,
-    wave_section: &'a mut VecDeque<WaveSection>,
+    wave_section: VecDeque<WaveSection>,
     time: f32,
     life: f32,
-    obstacle: &'a mut Obstacles<'a>,
-    generator: &'a mut rand::rngs::ThreadRng,
+    obstacle: Obstacles,
+    generator: rand::rngs::ThreadRng,
 }
 
-struct Obstacles<'a> {
+struct Obstacles {
     sprite: graphics::Image,
-    objects: &'a mut VecDeque<Obstacle>,
+    objects: VecDeque<Obstacle>,
     countdown: f32,
 }
 
@@ -53,31 +53,49 @@ struct Wave {
     y: f32,
 }
 
+impl AmplitudeGameState {
+    fn new(mut ctx: &mut Context) -> AmplitudeGameState {
+        let screen_size = graphics::screen_coordinates(&ctx);
+        let sawblade_image = graphics::Image::new(&mut ctx, "/sawblade.png").unwrap();
+
+        AmplitudeGameState {
+            wave_front: Wave {
+                x: screen_size.w / 8.0,
+                y: screen_size.h / 2.0,
+            },
+            wave_section: VecDeque::new(),
+            time: 0.0,
+            life: LIFE_MAXIMUM,
+            obstacle: Obstacles {
+                objects: VecDeque::new(),
+                sprite: sawblade_image,
+                countdown: OBSTACLE_COUNTDOWN,
+            },
+            generator: thread_rng(),
+        }
+    }
+
+    fn restart(&mut self, ctx: &mut Context) {
+        let screen_size = graphics::screen_coordinates(&ctx);
+
+        self.wave_front.x = screen_size.w / 8.0;
+        self.wave_front.y = screen_size.h / 2.0;
+
+        self.wave_section.clear();
+        self.time = 0.0;
+        self.life = LIFE_MAXIMUM;
+        self.obstacle.objects.clear();
+        self.obstacle.countdown = OBSTACLE_COUNTDOWN;
+    }
+}
+
 fn main() {
-    let (mut ctx, mut event_loop) = ContextBuilder::new("Amplitude", "yodamerlin")
+    let (mut ctx, mut event_loop) = ContextBuilder::new("Amplitude", "Corwin")
         .window_setup(conf::WindowSetup::default().title("Amplitude"))
         .build()
         .expect("Could not create ggez context");
 
-    let screen_size = graphics::screen_coordinates(&ctx);
-
-    let sawblade_image = graphics::Image::new(&mut ctx, "/sawblade.png").unwrap();
-
-    let mut state = AmplitudeGameState {
-        wave_front: Wave {
-            x: screen_size.w / 8.0,
-            y: screen_size.h / 2.0,
-        },
-        wave_section: &mut VecDeque::new(),
-        time: 0.0,
-        life: 100.0,
-        obstacle: &mut Obstacles {
-            objects: &mut VecDeque::new(),
-            sprite: sawblade_image,
-            countdown: OBSTACLE_COUNTDOWN,
-        },
-        generator: &mut thread_rng(),
-    };
+    let mut state = AmplitudeGameState::new(&mut ctx);
 
     match event::run(&mut ctx, &mut event_loop, &mut state) {
         Ok(_) => println!("Exited cleanly."),
@@ -85,10 +103,12 @@ fn main() {
     }
 }
 
-impl EventHandler for AmplitudeGameState<'_> {
+impl EventHandler for AmplitudeGameState {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         let dt = timer::delta(ctx);
         let dt = (dt.as_nanos() as f32) / 1_000_000_000.0;
+
+        let mut end_game = false;
 
         // update wave front
         let previous_sine_function =
@@ -144,9 +164,17 @@ impl EventHandler for AmplitudeGameState<'_> {
 
         // obstacle update
 
+        let sprite_size = self.obstacle.sprite.width() as f32 / 2.0;
+
         for o in self.obstacle.objects.iter_mut() {
             o.x -= dt * GAME_SPEED;
             o.angle -= 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * dt;
+
+            if (o.x - self.wave_front.x).powi(2) < sprite_size.powi(2)
+                && (o.y - self.wave_front.y).powi(2) < sprite_size.powi(2)
+            {
+                end_game = true;
+            }
         }
 
         // add obstacle
@@ -184,6 +212,10 @@ impl EventHandler for AmplitudeGameState<'_> {
             break;
         }
 
+        if end_game {
+            self.restart(ctx);
+        }
+
         Ok(())
     }
 
@@ -209,11 +241,15 @@ impl EventHandler for AmplitudeGameState<'_> {
             );
         }
 
-        mb.rectangle(
-            DrawMode::fill(),
-            graphics::Rect::new(5.0, 5.0, bar_width, 16.0),
-            self.wave_section[self.wave_section.len() - 1].color, // I feel bad about this
-        );
+        if !self.wave_section.is_empty() {
+            if let Some(o) = self.wave_section.get(self.wave_section.len() - 1) {
+                mb.rectangle(
+                    DrawMode::fill(),
+                    graphics::Rect::new(5.0, 5.0, bar_width, 16.0),
+                    o.color,
+                );
+            }
+        }
 
         for o in self.obstacle.objects.iter() {
             graphics::draw(
