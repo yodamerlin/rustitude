@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 
 use rand::prelude::*;
 
-const GAME_SPEED: f32 = 150.0;
+const MOVEMENT_SPEED: f32 = 150.0;
 const WAVE_FRONT_FREQUENCY: f32 = 1.0;
 const WAVE_FRONT_AMPLITUDE: f32 = 70.0;
 const WAVE_FRONT_AMPLITUDE_SMALL: f32 = 20.0;
@@ -157,7 +157,7 @@ impl EventHandler for AmplitudeGameState {
             color: section_color,
         };
         for section in self.wave_section.iter_mut() {
-            section.x -= dt * GAME_SPEED;
+            section.x -= dt * MOVEMENT_SPEED;
         }
 
         self.wave_section.push_back(new_wave_section);
@@ -167,7 +167,7 @@ impl EventHandler for AmplitudeGameState {
         let area_of_influence = self.obstacle.sprite.width() as f32 / 2.0 + WAVE_RADIUS / 2.0;
 
         for o in self.obstacle.objects.iter_mut() {
-            o.x -= dt * GAME_SPEED;
+            o.x -= dt * MOVEMENT_SPEED;
             o.angle -= 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * dt;
 
             if (o.x - self.wave_front.x).powi(2) < area_of_influence.powi(2)
