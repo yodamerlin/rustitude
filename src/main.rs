@@ -1,3 +1,5 @@
+#![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "windows")]
+
 use ggez::event::{EventHandler, KeyCode};
 use ggez::graphics::{Color, DrawMode, DrawParam};
 use ggez::input;
@@ -7,6 +9,8 @@ use ggez::*;
 use std::collections::VecDeque;
 
 use rand::prelude::*;
+
+use png::Decoder;
 
 const MOVEMENT_SPEED: f32 = 150.0;
 const WAVE_FRONT_FREQUENCY: f32 = 1.0;
@@ -56,9 +60,15 @@ struct Wave {
 }
 
 impl AmplitudeGameState {
-    fn new(mut ctx: &mut Context) -> AmplitudeGameState {
+    fn new(ctx: &mut Context) -> AmplitudeGameState {
         let screen_size = graphics::screen_coordinates(&ctx);
-        let sawblade_image = graphics::Image::new(&mut ctx, "/sawblade.png").unwrap();
+        let (info, mut image_read) = Decoder::new(&include_bytes!("../resources/sawblade.png")[..])
+            .read_info()
+            .unwrap();
+        let mut buf = vec![0; info.buffer_size()];
+        image_read.next_frame(&mut buf).unwrap();
+        let sawblade_image =
+            graphics::Image::from_rgba8(ctx, info.width as u16, info.height as u16, &buf).unwrap();
 
         AmplitudeGameState {
             wave_front: Wave {
