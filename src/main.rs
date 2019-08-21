@@ -187,7 +187,8 @@ impl EventHandler for AmplitudeGameState {
 
             // obstacle update
 
-            let area_of_influence = self.obstacle.sprite.width() as f32 / 2.0 + WAVE_RADIUS / 2.0;
+            let area_of_influence =
+                f32::from(self.obstacle.sprite.width()) / 2.0 + WAVE_RADIUS / 2.0;
 
             for o in self.obstacle.objects.iter_mut() {
                 o.x -= delta_time * MOVEMENT_SPEED;
