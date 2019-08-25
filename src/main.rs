@@ -34,6 +34,7 @@ struct AmplitudeGameState {
     life: f32,
     obstacle: Obstacles,
     generator: rand::rngs::ThreadRng,
+    screensize: (f32, f32),
 }
 
 struct Obstacles {
@@ -84,6 +85,7 @@ impl AmplitudeGameState {
                 countdown: OBSTACLE_COUNTDOWN,
             },
             generator: thread_rng(),
+            screensize: (screen_size.w, screen_size.h),
         }
     }
 
@@ -159,6 +161,8 @@ impl EventHandler for AmplitudeGameState {
 
             if self.life > LIFE_MAXIMUM {
                 self.life = LIFE_MAXIMUM;
+            } else if self.life < 0.0 {
+                self.life = 0.0;
             }
 
             let section_color: Color;
@@ -169,6 +173,14 @@ impl EventHandler for AmplitudeGameState {
             }
 
             self.wave_front.y += sine_function_difference * amplitude;
+
+            // check death by out of bounds
+
+            if self.wave_front.y < -WAVE_RADIUS / 2.0
+                || self.wave_front.y > self.screensize.1 + WAVE_RADIUS / 2.0
+            {
+                end_game = true;
+            }
 
             self.time += delta_time;
 
@@ -194,6 +206,8 @@ impl EventHandler for AmplitudeGameState {
                 o.x -= delta_time * MOVEMENT_SPEED;
                 o.angle -= 2.0 * std::f32::consts::PI * OBSTACLE_ANGLE_FREQUENCY * delta_time;
 
+                // check death by obstacle
+
                 if (o.x - self.wave_front.x).powi(2) < area_of_influence.powi(2)
                     && (o.y - self.wave_front.y).powi(2) < area_of_influence.powi(2)
                 {
@@ -206,10 +220,9 @@ impl EventHandler for AmplitudeGameState {
             self.obstacle.countdown -= delta_time;
             if self.obstacle.countdown <= 0.0 {
                 self.obstacle.countdown += OBSTACLE_COUNTDOWN;
-                let screen_size = graphics::screen_coordinates(&ctx);
                 let new_obstacle = Obstacle {
-                    x: screen_size.w + 32.0,
-                    y: self.generator.gen_range(0.0, screen_size.h),
+                    x: self.screensize.0 + 32.0,
+                    y: self.generator.gen_range(0.0, self.screensize.0),
                     angle: self.generator.gen_range(0.0, 2.0 * std::f32::consts::PI),
                 };
                 self.obstacle.objects.push_back(new_obstacle);
